@@ -193,3 +193,134 @@ function resetGame() {
 }
 
 init();
+
+
+// Button and DOM setup
+const replayBtn = document.createElement("button");
+replayBtn.textContent = "Show Optimal Replay";
+replayBtn.id = "replayBtn";
+replayBtn.style.display = "none";
+document.querySelector(".controls").appendChild(replayBtn);
+
+replayBtn.addEventListener("click", () => {
+  const result = simulateOptimalMoves(grid);
+  let i = 0;
+  let tempGrid = JSON.parse(JSON.stringify(grid));
+
+  function playNextMove() {
+    if (i >= result.moves.length) {
+      document.getElementById("message").textContent = `Max Theoretical Score: ${result.score}`;
+      return;
+    }
+    let move = result.moves[i++];
+    let visited = Array.from({ length: rows }, () => Array(cols).fill(false));
+    let blocks = floodFillForSim(tempGrid, move.r, move.c, tempGrid[move.r][move.c].color, visited);
+    blocks.forEach(({ r, c }) => tempGrid[r][c].active = false);
+    tempGrid = applyMove(tempGrid, blocks);
+    grid = JSON.parse(JSON.stringify(tempGrid));
+    draw();
+    setTimeout(playNextMove, 300);
+  }
+
+  playNextMove();
+});
+
+function simulateOptimalMoves(initialGrid) {
+  const copyGrid = JSON.parse(JSON.stringify(initialGrid));
+  let totalScore = 0;
+  let moveSequence = [];
+
+  function findBestMove(grid) {
+    let best = null;
+    let visited = Array.from({ length: rows }, () => Array(cols).fill(false));
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (!visited[r][c] && grid[r][c].active) {
+          const color = grid[r][c].color;
+          let blocks = floodFillForSim(grid, r, c, color, visited.map(row => row.slice()));
+          if (blocks.length > 1) {
+            let score = blocks.length * blocks.length;
+            if (!best || score > best.score) {
+              best = { blocks, r, c, score };
+            }
+          }
+        }
+      }
+    }
+
+    return best;
+  }
+
+  function floodFillForSim(grid, r, c, color, visited) {
+    if (r < 0 || r >= rows || c < 0 || c >= cols || visited[r][c]) return [];
+    const cell = grid[r][c];
+    if (!cell || !cell.active || cell.color !== color) return [];
+
+    visited[r][c] = true;
+    let blocks = [{ r, c }];
+    blocks = blocks.concat(floodFillForSim(grid, r - 1, c, color, visited));
+    blocks = blocks.concat(floodFillForSim(grid, r + 1, c, color, visited));
+    blocks = blocks.concat(floodFillForSim(grid, r, c - 1, color, visited));
+    blocks = blocks.concat(floodFillForSim(grid, r, c + 1, color, visited));
+    return blocks;
+  }
+
+  function applyMove(grid, blocks) {
+    blocks.forEach(({ r, c }) => {
+      grid[r][c].active = false;
+    });
+
+    for (let c = 0; c < cols; c++) {
+      let stack = [];
+      for (let r = rows - 1; r >= 0; r--) {
+        if (grid[r][c].active) {
+          stack.push(grid[r][c]);
+        }
+      }
+      for (let r = rows - 1; r >= 0; r--) {
+        grid[r][c] = stack[rows - 1 - r] || { color: null, active: false };
+      }
+    }
+
+    let newGrid = Array.from({ length: rows }, () => []);
+    let colIndex = 0;
+    for (let c = 0; c < cols; c++) {
+      let isEmpty = grid.every(row => !row[c].active);
+      if (!isEmpty) {
+        for (let r = 0; r < rows; r++) {
+          newGrid[r][colIndex] = grid[r][c];
+        }
+        colIndex++;
+      }
+    }
+
+    while (colIndex < cols) {
+      for (let r = 0; r < rows; r++) {
+        newGrid[r][colIndex] = { color: null, active: false };
+      }
+      colIndex++;
+    }
+
+    return newGrid;
+  }
+
+  while (true) {
+    const best = findBestMove(copyGrid);
+    if (!best) break;
+    totalScore += best.score;
+    moveSequence.push({ r: best.r, c: best.c, score: best.score });
+    Object.assign(copyGrid, applyMove(copyGrid, best.blocks));
+  }
+
+  return { score: totalScore, moves: moveSequence };
+}
+
+// Show replay button when game ends
+function updateMessage(messages) {
+  const msg = messages[Math.floor(Math.random() * messages.length)];
+  document.getElementById("message").textContent = msg;
+  if (messages === endMessages) {
+    document.getElementById("replayBtn").style.display = "inline-block";
+  }
+}
