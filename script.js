@@ -115,6 +115,12 @@ function hasMoves() {
   return false;
 }
 
+function checkEndGame() {
+  if (!hasMoves()) {
+    resetBtn.style.display = "inline-block";
+  }
+}
+
 canvas.addEventListener("click", (e) => {
   const rect = canvas.getBoundingClientRect();
   const x = Math.floor((e.clientX - rect.left) / blockSize);
@@ -123,20 +129,17 @@ canvas.addEventListener("click", (e) => {
   const group = getConnected(x, y, color);
 
   if (group.length >= 2) {
+    updateScore(group.length * group.length); // visible and correct scoring
     removeBlocks(group);
-    updateScore(group.length * group.length); // score = size^2
     drawGrid();
-    if (!hasMoves()) {
-      setTimeout(() => {
-        alert("No more moves! Your score: " + score);
-      }, 100);
-    }
+    checkEndGame();
   }
 });
 
 resetBtn.addEventListener("click", () => {
   score = 0;
   scoreDisplay.textContent = "Score: 0";
+  resetBtn.style.display = "none";
   generateGrid();
   drawGrid();
 });
