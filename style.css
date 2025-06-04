@@ -2,10 +2,23 @@ body {
   font-family: sans-serif;
   text-align: center;
   margin-top: 20px;
+  background: #f9f9f9;
 }
 
 canvas {
-  border: 1px solid #000;
+  border: 2px solid #333;
   display: block;
-  margin: 0 auto;
+  margin: 10px auto;
+}
+
+.scoreboard {
+  font-size: 1.2em;
+  margin-bottom: 10px;
+}
+
+button {
+  margin-top: 10px;
+  padding: 8px 16px;
+  font-size: 1em;
+  cursor: pointer;
 }
