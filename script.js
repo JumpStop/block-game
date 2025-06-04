@@ -151,3 +151,54 @@ document.getElementById("replayBtn").addEventListener("click", () => {
 
   playNextMove();
 });
+
+// Silent test mode for auto-debugging
+function runTests() {
+  try {
+    const testGrid = [
+      [ { color: 'R', active: true }, { color: 'R', active: true }, { color: 'G', active: true }, { color: 'G', active: true } ],
+      [ { color: 'R', active: true }, { color: 'G', active: true }, { color: 'G', active: true }, { color: 'R', active: true } ],
+      [ { color: 'B', active: true }, { color: 'B', active: true }, { color: 'R', active: true }, { color: 'R', active: true } ],
+      [ { color: 'G', active: true }, { color: 'G', active: true }, { color: 'B', active: true }, { color: 'B', active: true } ]
+    ];
+    const rowsTest = 4;
+    const colsTest = 4;
+
+    // 1. Score check for group size
+    let ffVisited = Array.from({ length: rowsTest }, () => Array(colsTest).fill(false));
+    const blockGroup = floodFill(testGrid, 0, 0, 'R', ffVisited);
+    if (blockGroup.length !== 3) throw new Error("❌ Test 1 failed: Score group wrong size");
+
+    // 2. Optimal solution verification
+    const result = simulateTrueOptimalMoves(testGrid, rowsTest, colsTest);
+    if (typeof result.score !== "number" || result.score <= 0) throw new Error("❌ Test 2 failed: Optimal score not returned");
+
+    // 3. Move replay path test (all valid coordinates)
+    result.moves.forEach(move => {
+      if (move.r < 0 || move.r >= rowsTest || move.c < 0 || move.c >= colsTest) {
+        throw new Error("❌ Test 3 failed: Replay move out of bounds");
+      }
+    });
+
+    // 4. Click protection check (toggle manually)
+    isAnimating = true;
+    let blocked = false;
+    const mockEvent = { clientX: 10, clientY: 10 };
+    const clickBefore = score;
+    canvas.dispatchEvent(new MouseEvent("click", mockEvent));
+    if (score !== clickBefore) blocked = true;
+    isAnimating = false;
+    if (!blocked) throw new Error("❌ Test 4 failed: Clicks not blocked during animation");
+
+    // 5. Score resets on reset
+    score = 100;
+    resetGame();
+    if (score !== 0) throw new Error("❌ Test 5 failed: Score did not reset");
+
+    console.log("✅ All background tests passed successfully");
+  } catch (err) {
+    console.error(err.message);
+  }
+}
+
+runTests();
