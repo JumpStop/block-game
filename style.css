@@ -5,6 +5,10 @@ body {
   background: #f9f9f9;
 }
 
+h1 {
+  margin-bottom: 10px;
+}
+
 canvas {
   border: 2px solid #333;
   display: block;
@@ -12,39 +16,23 @@ canvas {
 }
 
 .scoreboard {
-  font-size: 1.2em;
   margin-bottom: 10px;
 }
 
-#scoreRow, #highscoreRow {
-  margin: 6px;
-}
-
 #deltaScore {
+  margin-left: 10px;
   color: green;
-  margin-left: 8px;
   font-weight: bold;
-  animation: fadeOut 1s ease-out forwards;
-}
-
-@keyframes fadeOut {
-  0% { opacity: 1; }
-  100% { opacity: 0; }
-}
-
-.controls {
-  margin-top: 30px;
+  opacity: 1;
+  transition: opacity 1s ease;
 }
 
 .message {
-  margin-top: 20px;
-  font-size: 1em;
-  min-height: 20px;
-  height: 30px;
+  margin-top: 15px;
+  font-size: 18px;
+  min-height: 24px;
 }
 
-button {
-  padding: 10px 20px;
-  font-size: 1em;
-  cursor: pointer;
+.controls {
+  margin-top: 10px;
 }
