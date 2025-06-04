@@ -16,8 +16,31 @@ canvas {
   margin-bottom: 10px;
 }
 
+#scoreRow, #highscoreRow {
+  margin: 6px;
+}
+
+#deltaScore {
+  color: green;
+  margin-left: 8px;
+  font-weight: bold;
+  animation: fadeOut 1s ease-out forwards;
+}
+
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 .controls {
+  margin-top: 30px;
+}
+
+.message {
   margin-top: 20px;
+  font-size: 1em;
+  min-height: 20px;
+  height: 30px;
 }
 
 button {
