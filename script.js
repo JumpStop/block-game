@@ -1,56 +1,47 @@
-// Script file from last clean version before AI replay
+
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const rows = 10;
-const cols = 8;
+const cols = 10;
 const blockSize = 40;
 let grid = [];
 let score = 0;
-let highScore = 0;
-let isAnimating = false;
+let highscore = 0;
+const colors = ["red", "blue", "green", "yellow", "purple"];
+const praiseMessages = ["Nice!", "Great move!", "Awesome!", "Keep going!", "You're on fire!"];
+const endMessages = ["Game Over!", "No more moves!", "Try again!", "You're done!", "All clear!"];
 
-const colors = ["red", "blue", "green", "orange", "purple"];
+document.getElementById("resetBtn").onclick = resetGame;
 
-function randomColor() {
-  return colors[Math.floor(Math.random() * colors.length)];
-}
-
-function createGrid() {
-  const arr = [];
+function init() {
   for (let r = 0; r < rows; r++) {
-    const row = [];
+    grid[r] = [];
     for (let c = 0; c < cols; c++) {
-      row.push({ color: randomColor(), active: true });
+      grid[r][c] = { color: colors[Math.floor(Math.random() * colors.length)], active: true };
     }
-    arr.push(row);
   }
-  return arr;
+  score = 0;
+  draw();
 }
 
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const activeCols = grid[0].map((_, c) => grid.some(row => row[c].active));
-  const colOffsets = [];
-  let offset = 0;
-  for (let c = 0; c < cols; c++) {
-    colOffsets[c] = activeCols[c] ? offset++ : -1;
-  }
-  const totalActiveCols = offset;
-  const startX = (canvas.width - totalActiveCols * blockSize) / 2;
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      const block = grid[r][c];
-      if (block.active && colOffsets[c] >= 0) {
-        ctx.fillStyle = block.color;
-        ctx.fillRect(startX + colOffsets[c] * blockSize, r * blockSize, blockSize - 2, blockSize - 2);
+      const cell = grid[r][c];
+      if (cell && cell.active && cell.color) {
+        ctx.fillStyle = cell.color;
+        ctx.fillRect(c * blockSize, r * blockSize, blockSize, blockSize);
+        ctx.strokeRect(c * blockSize, r * blockSize, blockSize, blockSize);
       }
     }
   }
 }
 
 function floodFill(r, c, color, visited) {
-  if (r < 0 || r >= rows || c < 0 || c >= cols) return [];
-  if (visited[r][c] || !grid[r][c].active || grid[r][c].color !== color) return [];
+  if (r < 0 || r >= rows || c < 0 || c >= cols || visited[r][c]) return [];
+  const cell = grid[r][c];
+  if (!cell || !cell.active || cell.color !== color) return [];
 
   visited[r][c] = true;
   let blocks = [{ r, c }];
@@ -61,117 +52,144 @@ function floodFill(r, c, color, visited) {
   return blocks;
 }
 
-function handleBlockClick(r, c) {
-  if (isAnimating || !grid[r][c].active) return;
+canvas.addEventListener("click", (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const c = Math.floor(x / blockSize);
+  const r = Math.floor(y / blockSize);
+
+  if (!grid[r] || !grid[r][c] || !grid[r][c].active) return;
   const color = grid[r][c].color;
   const visited = Array.from({ length: rows }, () => Array(cols).fill(false));
   const blocks = floodFill(r, c, color, visited);
+
   if (blocks.length <= 1) return;
 
-  score += blocks.length * blocks.length;
-  document.getElementById("score").textContent = score;
+  let gained = blocks.length * blocks.length;
+  score += gained;
+  document.getElementById("score").textContent = "Score: " + score;
+  const delta = document.getElementById("deltaScore");
+  delta.textContent = `+${gained}`;
+  delta.style.opacity = 1;
+  setTimeout(() => delta.style.opacity = 0, 1000);
 
-  blocks.forEach(({ r, c }) => grid[r][c].active = false);
-  animateGravity(() => {
-    mergeColumns();
-    draw();
-    if (!hasValidMoves()) {
-      document.getElementById("message").textContent = getRandomGameOver();
-      document.getElementById("resetBtn").style.display = "inline-block";
-      if (score > highScore) {
-        highScore = score;
-        document.getElementById("highScore").textContent = highScore;
+  if (score > highscore) {
+    highscore = score;
+    document.getElementById("highscore").textContent = "High Score: " + highscore;
+  }
+
+  animateRemoval(blocks);
+});
+
+function animateRemoval(blocks) {
+  let frames = 10;
+  const interval = setInterval(() => {
+    blocks.forEach(({ r, c }) => {
+      const cell = grid[r][c];
+      if (cell) {
+        cell.alpha = (cell.alpha || 1) - 1 / frames;
       }
-    } else {
-      document.getElementById("message").textContent = getRandomPraise();
+    });
+    drawWithAlpha();
+    if (--frames <= 0) {
+      clearInterval(interval);
+      blocks.forEach(({ r, c }) => grid[r][c].active = false);
+      animateDrop();
     }
-  });
+  }, 30);
 }
 
-function animateGravity(callback) {
-  isAnimating = true;
-  let changes = false;
+function drawWithAlpha() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const cell = grid[r][c];
+      if (cell && cell.active && cell.color) {
+        ctx.globalAlpha = cell.alpha || 1;
+        ctx.fillStyle = cell.color;
+        ctx.fillRect(c * blockSize, r * blockSize, blockSize, blockSize);
+        ctx.strokeRect(c * blockSize, r * blockSize, blockSize, blockSize);
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+}
+
+function animateDrop() {
+  let changed = false;
   for (let c = 0; c < cols; c++) {
     for (let r = rows - 1; r > 0; r--) {
       if (!grid[r][c].active && grid[r - 1][c].active) {
         grid[r][c] = grid[r - 1][c];
         grid[r - 1][c] = { color: null, active: false };
-        changes = true;
+        changed = true;
       }
     }
   }
   draw();
-  if (changes) {
-    setTimeout(() => animateGravity(callback), 100);
+  if (changed) {
+    setTimeout(animateDrop, 30);
   } else {
-    isAnimating = false;
-    callback();
+    collapseColumns();
+    draw();
+    updateMessage(praiseMessages);
+    if (!hasMoves()) {
+      document.getElementById("resetBtn").style.display = "inline-block";
+      updateMessage(endMessages);
+    }
   }
 }
 
-function mergeColumns() {
-  const newGrid = Array.from({ length: rows }, () => []);
+function collapseColumns() {
+  let newGrid = Array.from({ length: rows }, () => []);
   let colIndex = 0;
+
   for (let c = 0; c < cols; c++) {
-    if (grid.some(row => row[c].active)) {
+    let isEmpty = grid.every(row => !row[c].active);
+    if (!isEmpty) {
       for (let r = 0; r < rows; r++) {
         newGrid[r][colIndex] = grid[r][c];
       }
       colIndex++;
     }
   }
+
   while (colIndex < cols) {
     for (let r = 0; r < rows; r++) {
       newGrid[r][colIndex] = { color: null, active: false };
     }
     colIndex++;
   }
+
   grid = newGrid;
 }
 
-function getRandomPraise() {
-  const messages = ["Nice!", "Great move!", "Keep it up!", "Awesome!", "Well done!"];
-  return messages[Math.floor(Math.random() * messages.length)];
-}
-
-function getRandomGameOver() {
-  const messages = ["Game over!", "No more moves!", "Try again!", "You finished!", "End of game!"];
-  return messages[Math.floor(Math.random() * messages.length)];
-}
-
-function hasValidMoves() {
+function hasMoves() {
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      if (!grid[r][c].active) continue;
-      const color = grid[r][c].color;
-      if ((r + 1 < rows && grid[r + 1][c].color === color && grid[r + 1][c].active) ||
-          (c + 1 < cols && grid[r][c + 1].color === color && grid[r][c + 1].active)) {
-        return true;
+      if (grid[r][c].active) {
+        const color = grid[r][c].color;
+        if ((r < rows - 1 && grid[r + 1][c].color === color && grid[r + 1][c].active) ||
+            (c < cols - 1 && grid[r][c + 1].color === color && grid[r][c + 1].active)) {
+          return true;
+        }
       }
     }
   }
   return false;
 }
 
-canvas.addEventListener("click", function (event) {
-  const rect = canvas.getBoundingClientRect();
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
-  const c = Math.floor((x - (canvas.width - cols * blockSize) / 2) / blockSize);
-  const r = Math.floor(y / blockSize);
-  if (r >= 0 && r < rows && c >= 0 && c < cols) {
-    handleBlockClick(r, c);
-  }
-});
+function updateMessage(messages) {
+  const msg = messages[Math.floor(Math.random() * messages.length)];
+  document.getElementById("message").textContent = msg;
+}
 
-document.getElementById("resetBtn").addEventListener("click", () => {
-  grid = createGrid();
-  score = 0;
-  document.getElementById("score").textContent = "0";
-  document.getElementById("message").textContent = "";
+function resetGame() {
   document.getElementById("resetBtn").style.display = "none";
-  draw();
-});
+  document.getElementById("message").textContent = "";
+  document.getElementById("deltaScore").textContent = "";
+  init();
+}
 
-grid = createGrid();
-draw();
+init();
